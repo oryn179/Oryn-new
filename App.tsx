@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -28,6 +28,7 @@ export const useAuth = () => {
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const authInProgress = useRef(false);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -46,7 +47,6 @@ const App: React.FC = () => {
           const data = await response.json();
           setUser(data.user);
         } else {
-          // Token expired or invalid
           logout();
         }
       } catch (error) {
@@ -56,13 +56,16 @@ const App: React.FC = () => {
       }
     };
 
-    // Check for OAuth callback code in URL first
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
-    if (code) {
+    
+    if (code && !authInProgress.current) {
+      authInProgress.current = true;
       handleLogin(code);
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-    } else {
+      // Clean query params to prevent re-triggering on refresh
+      const newUrl = window.location.origin + window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+    } else if (!code) {
       verifySession();
     }
   }, []);
@@ -70,10 +73,13 @@ const App: React.FC = () => {
   const handleLogin = async (code: string) => {
     setIsLoading(true);
     try {
+      // We send the current redirect_uri so the backend can match it during exchange
+      const redirect_uri = window.location.origin + window.location.pathname;
+      
       const response = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code, redirect_uri })
       });
       
       if (response.ok) {
@@ -81,11 +87,13 @@ const App: React.FC = () => {
         setUser(data.user);
         localStorage.setItem('oryn_token', data.token);
       } else {
-        console.error("Login failed at backend");
+        const errData = await response.json().catch(() => ({}));
+        console.error("Login failed:", errData.error || response.statusText);
         logout();
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Critical Login Error:", error);
+      logout();
     } finally {
       setIsLoading(false);
     }
@@ -94,6 +102,7 @@ const App: React.FC = () => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('oryn_token');
+    authInProgress.current = false;
   };
 
   return (
@@ -108,7 +117,6 @@ const App: React.FC = () => {
               <Route path="/gift" element={<Gift />} />
               <Route path="/rate" element={<RateUs />} />
               
-              {/* PROTECTED ADMIN ROUTE */}
               <Route 
                 path="/admin" 
                 element={
