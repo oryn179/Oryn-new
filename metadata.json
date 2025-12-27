@@ -1,0 +1,8 @@
+{
+  "name": "Oryn Server Tournament",
+  "description": "Exclusive tournament platform for video editors with GitHub authentication, voting systems, and a premium neon-green design.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
