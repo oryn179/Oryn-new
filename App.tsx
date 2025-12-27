@@ -51,6 +51,7 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error("Session verification failed:", error);
+        logout();
       } finally {
         setIsLoading(false);
       }
@@ -62,10 +63,10 @@ const App: React.FC = () => {
     if (code && !authInProgress.current) {
       authInProgress.current = true;
       handleLogin(code);
-      // Clean query params to prevent re-triggering on refresh
-      const newUrl = window.location.origin + window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-    } else if (!code) {
+      // Construct clean URL (maintaining the hash for HashRouter)
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } else {
       verifySession();
     }
   }, []);
@@ -73,7 +74,7 @@ const App: React.FC = () => {
   const handleLogin = async (code: string) => {
     setIsLoading(true);
     try {
-      // We send the current redirect_uri so the backend can match it during exchange
+      // CRITICAL: Must match the redirect_uri used in the initial GitHub redirect
       const redirect_uri = window.location.origin + window.location.pathname;
       
       const response = await fetch('/api/auth', {
@@ -82,17 +83,17 @@ const App: React.FC = () => {
         body: JSON.stringify({ code, redirect_uri })
       });
       
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
         setUser(data.user);
         localStorage.setItem('oryn_token', data.token);
       } else {
-        const errData = await response.json().catch(() => ({}));
-        console.error("Login failed:", errData.error || response.statusText);
+        console.error("Auth server error:", data.error);
         logout();
       }
     } catch (error) {
-      console.error("Critical Login Error:", error);
+      console.error("Auth request failed:", error);
       logout();
     } finally {
       setIsLoading(false);
@@ -116,7 +117,6 @@ const App: React.FC = () => {
               <Route path="/vote" element={<Vote />} />
               <Route path="/gift" element={<Gift />} />
               <Route path="/rate" element={<RateUs />} />
-              
               <Route 
                 path="/admin" 
                 element={
@@ -125,7 +125,6 @@ const App: React.FC = () => {
                   </ProtectedAdminRoute>
                 } 
               />
-              
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>

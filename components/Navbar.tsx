@@ -5,7 +5,7 @@ import { useAuth } from '../App';
 import { GITHUB_CLIENT_ID } from '../constants';
 
 const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -21,8 +21,9 @@ const Navbar: React.FC = () => {
   }
 
   const handleGithubLogin = () => {
+    // Must match the redirect_uri used in worker.ts
     const redirectUri = window.location.origin + window.location.pathname;
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=user&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=read:user&redirect_uri=${encodeURIComponent(redirectUri)}`;
   };
 
   return (
@@ -47,7 +48,9 @@ const Navbar: React.FC = () => {
               </Link>
             ))}
             
-            {user ? (
+            {isLoading ? (
+              <div className="w-8 h-8 border-2 border-[#39FF14] border-t-transparent rounded-full animate-spin"></div>
+            ) : user ? (
               <div className="flex items-center space-x-4">
                 <img src={user.avatar_url} alt={user.username} className="w-8 h-8 rounded-full border border-[#39FF14]" />
                 <button 

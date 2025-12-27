@@ -53,46 +53,39 @@ export default {
       return new Response(null, { headers });
     }
 
+    // 1. OAuth Code Exchange
     if (url.pathname === '/api/auth' && request.method === 'POST') {
       try {
-        const body = await request.json() as { code: string; redirect_uri?: string };
+        const body = await request.json() as { code: string; redirect_uri: string };
         const { code, redirect_uri } = body;
 
-        if (!code) {
-          return new Response(JSON.stringify({ error: 'Code required' }), { status: 400, headers });
-        }
-
-        const tokenExchangeBody: any = {
-          client_id: env.GITHUB_CLIENT_ID,
-          client_secret: env.GITHUB_CLIENT_SECRET,
-          code
-        };
-        
-        // redirect_uri must match the one used in the authorize step
-        if (redirect_uri) {
-          tokenExchangeBody.redirect_uri = redirect_uri;
+        if (!code || !redirect_uri) {
+          return new Response(JSON.stringify({ error: 'Code and redirect_uri required' }), { status: 400, headers });
         }
 
         const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(tokenExchangeBody)
+          body: JSON.stringify({
+            client_id: env.GITHUB_CLIENT_ID,
+            client_secret: env.GITHUB_CLIENT_SECRET,
+            code,
+            redirect_uri
+          })
         });
 
         const tokenData: any = await tokenResponse.json();
+        
         if (tokenData.error) {
-          return new Response(JSON.stringify({ error: tokenData.error_description || tokenData.error }), { 
-            status: 400, 
-            headers 
-          });
+          return new Response(JSON.stringify({ 
+            error: tokenData.error_description || tokenData.error,
+            details: tokenData
+          }), { status: 400, headers });
         }
 
         const userData: any = await getGitHubUser(tokenData.access_token);
         if (!userData) {
-          return new Response(JSON.stringify({ error: 'Failed to fetch user profile from GitHub' }), { 
-            status: 401, 
-            headers 
-          });
+          return new Response(JSON.stringify({ error: 'Failed to fetch GitHub profile' }), { status: 401, headers });
         }
 
         const role = resolveRole(userData);
@@ -109,6 +102,7 @@ export default {
       }
     }
 
+    // 2. Session Verification
     if (url.pathname === '/api/session' && request.method === 'GET') {
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -119,20 +113,20 @@ export default {
       const userData: any = await getGitHubUser(token);
       
       if (!userData) {
-        return new Response(JSON.stringify({ error: 'Invalid or expired session' }), { status: 401, headers });
+        return new Response(JSON.stringify({ error: 'Session expired' }), { status: 401, headers });
       }
 
       const role = resolveRole(userData);
-      const user = {
-        id: userData.id.toString(),
-        username: userData.login,
-        avatar_url: userData.avatar_url,
-        role
-      };
-
-      return new Response(JSON.stringify({ user }), { headers });
+      return new Response(JSON.stringify({ 
+        user: {
+          id: userData.id.toString(),
+          username: userData.login,
+          avatar_url: userData.avatar_url,
+          role
+        }
+      }), { headers });
     }
 
-    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers });
+    return new Response(JSON.stringify({ error: 'API route not found' }), { status: 404, headers });
   }
 };
