@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { GOOGLE_FORM_LINK, TOURNAMENT_END_DATE } from '../constants';
 
 const Home: React.FC = () => {
-  const [timeLeft, setTimeLeft] = useState({ days: 3, hours: 2, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ days: 4, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -12,6 +12,7 @@ const Home: React.FC = () => {
       
       if (distance < 0) {
         clearInterval(timer);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       } else {
         setTimeLeft({
           days: Math.floor(distance / (1000 * 60 * 60 * 24)),
@@ -23,6 +24,24 @@ const Home: React.FC = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const prizes = [
+    {
+      rank: "🥇 1st PLACE",
+      details: "25🌹★ (Stars) + AE & AM Stuff + 75+ Premium Pfps",
+      imgSeed: "prize1"
+    },
+    {
+      rank: "🥈 2nd PLACE",
+      details: "AE & AM Exclusive Stuff + 75+ Premium Pfps",
+      imgSeed: "prize2"
+    },
+    {
+      rank: "🥉 3rd PLACE",
+      details: "AE & AM Exclusive Stuff",
+      imgSeed: "prize3"
+    }
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -59,19 +78,19 @@ const Home: React.FC = () => {
       </div>
 
       <section className="mb-20">
-        <h3 className="text-3xl font-bold font-mono mb-8 neon-text border-b border-[#39FF14]/30 pb-2">PRIZE PREVIEW</h3>
+        <h3 className="text-3xl font-bold font-mono mb-8 neon-text border-b border-[#39FF14]/30 pb-2">PRIZE POOL</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[1, 2, 3].map((i) => (
+          {prizes.map((prize, i) => (
             <div key={i} className="group relative overflow-hidden rounded-xl bg-white/5 aspect-video border border-white/10">
               <img 
-                src={`https://picsum.photos/seed/${i + 10}/800/450`} 
-                alt={`Prize ${i}`} 
+                src={`https://picsum.photos/seed/${prize.imgSeed}/800/450`} 
+                alt={prize.rank} 
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-70 group-hover:opacity-100"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent flex items-end p-6">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent flex items-end p-6">
                 <div>
-                  <span className="text-2xl font-bold font-mono neon-text">#{i} PLACE</span>
-                  <p className="text-gray-300 text-sm">Professional Editing Gear + Cash Prize</p>
+                  <span className="text-2xl font-bold font-mono neon-text block mb-1">{prize.rank}</span>
+                  <p className="text-gray-200 text-sm font-semibold leading-tight">{prize.details}</p>
                 </div>
               </div>
             </div>
