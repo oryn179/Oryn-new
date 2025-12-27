@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { GOOGLE_FORM_LINK, TOURNAMENT_END_DATE } from '../constants';
 
 const Home: React.FC = () => {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ days: 3, hours: 2, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     const timer = setInterval(() => {

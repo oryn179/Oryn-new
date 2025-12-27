@@ -7,6 +7,7 @@ import Vote from './pages/Vote';
 import Gift from './pages/Gift';
 import RateUs from './pages/RateUs';
 import Admin from './pages/Admin';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import { User } from './types';
 
 interface AuthContextType {
@@ -29,30 +30,46 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Persistent login check
-    const savedUser = localStorage.getItem('oryn_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    // Check for OAuth callback code in URL
+    const verifySession = async () => {
+      const token = localStorage.getItem('oryn_token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/session', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          // Token expired or invalid
+          logout();
+        }
+      } catch (error) {
+        console.error("Session verification failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Check for OAuth callback code in URL first
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     if (code) {
       handleLogin(code);
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
     } else {
-      setIsLoading(false);
+      verifySession();
     }
   }, []);
 
   const handleLogin = async (code: string) => {
     setIsLoading(true);
     try {
-      // In a real scenario, this calls the Cloudflare Worker
-      // For this demo, we simulate the exchange with the user's data
-      // Backend handles the actual secure exchange with GitHub
       const response = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,18 +79,10 @@ const App: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-        localStorage.setItem('oryn_user', JSON.stringify(data.user));
+        localStorage.setItem('oryn_token', data.token);
       } else {
-        // Mock fallback for UI testing if API is not yet live
-        console.warn("Backend not found, using mock user for preview");
-        const mockUser: User = {
-          id: '12345',
-          username: 'DemoEditor',
-          avatar_url: 'https://picsum.photos/200',
-          role: 'admin'
-        };
-        setUser(mockUser);
-        localStorage.setItem('oryn_user', JSON.stringify(mockUser));
+        console.error("Login failed at backend");
+        logout();
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -84,7 +93,7 @@ const App: React.FC = () => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('oryn_user');
+    localStorage.removeItem('oryn_token');
   };
 
   return (
@@ -98,10 +107,17 @@ const App: React.FC = () => {
               <Route path="/vote" element={<Vote />} />
               <Route path="/gift" element={<Gift />} />
               <Route path="/rate" element={<RateUs />} />
+              
+              {/* PROTECTED ADMIN ROUTE */}
               <Route 
                 path="/admin" 
-                element={user?.role === 'admin' ? <Admin /> : <Navigate to="/" />} 
+                element={
+                  <ProtectedAdminRoute>
+                    <Admin />
+                  </ProtectedAdminRoute>
+                } 
               />
+              
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>
